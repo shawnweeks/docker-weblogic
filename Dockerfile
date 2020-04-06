@@ -1,35 +1,49 @@
-# Pull Base Image
 FROM oraclelinux:7
 
-# Setup Environment
-ENV JAVA_RPM jdk-7u80-linux-x64.rpm
+ENV JAVA_PKG jdk-7u80-linux-x64.tar.gz
 ENV WLS_PKG wls1036_generic.jar
-ENV JAVA_HOME /usr/java/default
+ENV JAVA_HOME /u01/oracle/jdk
 
-# Create Installation Directory and User
+COPY $JAVA_PKG $WLS_PKG wls-silent.xml /tmp/
+
 RUN mkdir /u01 && \
-    chmod a+xr /u01 && \
-    useradd -b /u01 -m -s /bin/bash oracle
+    mkdir -p /u01/oracle/jdk/ && \
+    tar -xvf /tmp/$JAVA_PKG --strip=1 --directory /u01/oracle/jdk/ &&\
+    $JAVA_HOME/bin/java -jar /tmp/$WLS_PKG -mode=silent -silent_xml=/tmp/wls-silent.xml
 
-# Copy Packages
-COPY $JAVA_RPM $WLS_PKG wls-silent.xml /u01/
+COPY create-wls-domain.py /u01/oracle/
+COPY nodemanager.properties /u01/oracle/weblogic/wlserver_10.3/common/nodemanager
 
-# Install Oracle JDK
-RUN rpm -i /u01/$JAVA_RPM && \
-    rm /u01/$JAVA_RPM
+FROM oraclelinux:7
+ENV JAVA_HOME /u01/oracle/jdk
+ENV ADMIN_USERNAME weblogic
+ENV ADMIN_PASSWORD welcome01
+ENV WL_PORT 7001
+ENV NM_PORT 5556
+ENV USER_MEM_ARGS -Xms256m -Xmx512m -XX:MaxPermSize=1024m
+ENV EXTRA_JAVA_PROPERTIES $EXTRA_JAVA_PROPERTIES -Djava.security.egd=file:///dev/urandom
 
-# Adjust File Permissions and Switch to Oracle User for Install
-RUN chown oracle:oracle -R /u01
-WORKDIR /u01
+RUN groupadd -r oracle && useradd --no-log-init -r -d /u01 -g oracle oracle
+
+COPY --from=0 --chown=oracle:oracle /u01 /u01
+
 USER oracle
+WORKDIR /u01/oracle/weblogic
 
-# Install Weblogic
-RUN java -jar $WLS_PKG -mode=silent -silent_xml=/u01/wls-silent.xml && \
-	rm $WLS_PKG /u01/wls-silent.xml
+# Setup WebLogic Domain
+RUN /u01/oracle/weblogic/wlserver_10.3/common/bin/wlst.sh -skipWLSModuleScanning /u01/oracle/create-wls-domain.py && \
+    mkdir -p /u01/oracle/weblogic/user_projects/domains/base_domain/servers/AdminServer/security && \
+    echo "username=$ADMIN_USERNAME" > /u01/oracle/weblogic/user_projects/domains/base_domain/servers/AdminServer/security/boot.properties && \ 
+    echo "password=$ADMIN_PASSWORD" >> /u01/oracle/weblogic/user_projects/domains/base_domain/servers/AdminServer/security/boot.properties && \
+    echo ". /u01/oracle/weblogic/user_projects/domains/base_domain/bin/setDomainEnv.sh" >> /u01/oracle/.bashrc && \ 
+    echo "export PATH=$PATH:/u01/oracle/weblogic/wlserver_10.3/common/bin:/u01/oracle/weblogic/user_projects/domains/base_domain/bin" >> /u01/oracle/.bashrc     
 
-WORKDIR /u01/oracle/
+VOLUME /u01/oracle/weblogic/user_projects/domains/base_domain/
 
-ENV PATH $PATH:/u01/oracle/weblogic/oracle_common/common/bin
+EXPOSE $NM_PORT $WL_PORT
 
-# Define default command to start bash.
-CMD ["bash"]
+WORKDIR /u01/oracle
+
+ENV PATH $PATH:/u01/oracle/weblogic/wlserver_10.3/common/bin:/u01/oracle/weblogic/wlserver_10.3/server/bin:/u01/oracle/weblogic/user_projects/domains/base_domain/bin:/u01/oracle
+
+CMD ["startWebLogic.sh"]
