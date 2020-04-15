@@ -18,7 +18,7 @@ docker run -it --rm \
     -p 7001:7001 \
     --name wlsadmin \
     --mount source=wlsadmin,target=/u01/oracle/weblogic/user_projects/domains/base_domain/ \
-    --env USER_MEM_ARGS='-Xms1024m -Xmx1024m -XX:MaxPermSize=128m' \
+    --env USER_MEM_ARGS='-Xms512m -Xmx512m -XX:MaxPermSize=128m' \
     weblogic:10.3.6
 ```
 
@@ -32,7 +32,6 @@ docker run -it --rm \
     -p 5556:5556 \
     --name wlsnode \
     --mount source=wlsnode,target=/u01/oracle/weblogic/user_projects/domains/base_domain/ \
-    --env USER_MEM_ARGS='-Xms1024m -Xmx1024m -XX:MaxPermSize=128m' \
     weblogic:10.3.6 \
     startNodeManager.sh
 ```

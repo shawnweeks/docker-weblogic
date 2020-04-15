@@ -1,4 +1,4 @@
-FROM oraclelinux:7
+FROM amazonlinux:latest
 
 ENV JAVA_PKG jdk-7u80-linux-x64.tar.gz
 ENV WLS_PKG wls1036_generic.jar
@@ -6,26 +6,31 @@ ENV JAVA_HOME /u01/oracle/jdk
 
 COPY $JAVA_PKG $WLS_PKG wls-silent.xml /tmp/
 
-RUN mkdir /u01 && \
+RUN yum install -y gzip tar shadow-utils && \
+    yum clean all && \
+    groupadd -r oracle && \
+    useradd --no-log-init -r -d /u01 -g oracle oracle && \
+    mkdir /u01 && \
     mkdir -p /u01/oracle/jdk/ && \
-    tar -xvf /tmp/$JAVA_PKG --strip=1 --directory /u01/oracle/jdk/ &&\
-    $JAVA_HOME/bin/java -jar /tmp/$WLS_PKG -mode=silent -silent_xml=/tmp/wls-silent.xml
+    tar -xvf /tmp/$JAVA_PKG --strip=1 --directory /u01/oracle/jdk/ && \
+    $JAVA_HOME/bin/java -jar /tmp/$WLS_PKG -mode=silent -silent_xml=/tmp/wls-silent.xml && \
+    chown oracle:oracle -R /u01 && \
+    rm -rf /tmp/* 
 
+# TODO Wrong Permissions - Fix This
 COPY create-wls-domain.py /u01/oracle/
 COPY nodemanager.properties /u01/oracle/weblogic/wlserver_10.3/common/nodemanager
 
-FROM oraclelinux:7
+FROM scratch
 ENV JAVA_HOME /u01/oracle/jdk
 ENV ADMIN_USERNAME weblogic
 ENV ADMIN_PASSWORD welcome01
 ENV WL_PORT 7001
 ENV NM_PORT 5556
-ENV USER_MEM_ARGS -Xms256m -Xmx512m -XX:MaxPermSize=1024m
+ENV USER_MEM_ARGS -Xms256m -Xmx512m -XX:MaxPermSize=128m
 ENV EXTRA_JAVA_PROPERTIES $EXTRA_JAVA_PROPERTIES -Djava.security.egd=file:///dev/urandom
 
-RUN groupadd -r oracle && useradd --no-log-init -r -d /u01 -g oracle oracle
-
-COPY --from=0 --chown=oracle:oracle /u01 /u01
+COPY --from=0 / /
 
 USER oracle
 WORKDIR /u01/oracle/weblogic
