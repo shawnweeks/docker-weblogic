@@ -3,11 +3,11 @@
 To build and push run the following commands.
 
 ```shell
-docker build -t 249116421948.dkr.ecr.us-east-1.amazonaws.com/weblogic:10.3.6 .
-docker push 249116421948.dkr.ecr.us-east-1.amazonaws.com/weblogic:10.3.6
+docker build -t $REGISTRY/weblogic:10.3.6 .
+docker push $REGISTRY/weblogic:10.3.6
 
-docker build -t 249116421948.dkr.ecr.us-east-1.amazonaws.com/weblogic-base-domain:10.3.6 ./base-domain
-docker push 249116421948.dkr.ecr.us-east-1.amazonaws.com/weblogic-base-domain:10.3.6
+docker build -t $REGISTRY/weblogic-base-domain:10.3.6 ./base-domain
+docker push $REGISTRY/weblogic-base-domain:10.3.6
 ```
 To run the WebLogic Admin Instance do this.
 
